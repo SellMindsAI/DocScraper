@@ -1,4 +1,3 @@
-```markdown
 # 📚 DocScraper
 
 > A modern CLI tool to convert online technical documentation into clean, organized Markdown files.
@@ -177,4 +176,3 @@ Please ensure you have permission to scrape content and respect websites' `robot
 ---
 
 Made with ❤️ by SellMindsAI
-```
