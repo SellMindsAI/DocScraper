@@ -21,7 +21,7 @@
 
 ```bash
 # Install
-go install github.com/yourusername/docscraper@latest
+go install github.com/SellMindsAI/docscraper@latest
 
 # Basic usage
 docscrap -u https://nextjs.org/docs -o nextjs_doc.md
