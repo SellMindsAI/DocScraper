@@ -15,6 +15,7 @@
 - 📁 Automatic content structuring
 - 🧹 Removes navigation, ads, and other non-content elements
 - 📝 Generates table of contents
+- 📄 Single page mode for individual document scraping
 
 ## 🚀 Quick Start
 
@@ -24,6 +25,9 @@ go install github.com/yourusername/docscraper@latest
 
 # Basic usage
 docscrap -u https://nextjs.org/docs -o nextjs_doc.md
+
+# Single page mode
+docscrap -u https://nextjs.org/docs/getting-started -o page.md -p
 ```
 
 ## 💻 Installation from Source
@@ -87,6 +91,7 @@ docscrap -u <url> -o <output_file> [options]
 | `-min` | Minimum delay between requests (seconds) | 0.5 |
 | `-max` | Maximum delay between requests (seconds) | 5.0 |
 | `-n, --nodelay` | Disable request delays | false |
+| `-p, --single-page`| Scrape only the provided URL | false |
 
 ### Examples
 
@@ -105,6 +110,11 @@ docscrap -u https://react.dev/reference/react \
 docscrap -u https://docs.python.org/3/ \
          -o python_doc.md \
          --nodelay
+
+# Single page scraping
+docscrap -u https://docs.python.org/3/tutorial/introduction.html \
+         -o python_intro.md \
+         -p
 ```
 
 ## 📁 Output Structure
