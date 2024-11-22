@@ -30,7 +30,7 @@ docscrap -u https://nextjs.org/docs -o nextjs_doc.md
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/docscraper
+git clone https://github.com/SellMindsAI/docscraper
 cd docscraper
 
 # Install dependencies
