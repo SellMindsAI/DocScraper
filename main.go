@@ -16,7 +16,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// Organization defines how the documentation will be organized in files
 type Organization int
 
 const (
@@ -25,7 +24,6 @@ const (
 	ByPages
 )
 
-// Page represents a single documentation page
 type Page struct {
 	Title    string
 	Content  string
@@ -34,7 +32,6 @@ type Page struct {
 	Level    int
 }
 
-// Scraper holds all the necessary configuration and state for scraping
 type Scraper struct {
 	baseURL      string
 	outputPath   string
@@ -46,10 +43,10 @@ type Scraper struct {
 	maxDelay     float64
 	organization Organization
 	pages        []Page
+	singlePage   bool
 }
 
-// NewScraper creates and initializes a new Scraper instance
-func NewScraper(baseURL, outputPath string, minDelay, maxDelay float64, org Organization) *Scraper {
+func NewScraper(baseURL, outputPath string, minDelay, maxDelay float64, org Organization, singlePage bool) *Scraper {
 	return &Scraper{
 		baseURL:     sanitizeURL(baseURL),
 		outputPath:  outputPath,
@@ -63,10 +60,10 @@ func NewScraper(baseURL, outputPath string, minDelay, maxDelay float64, org Orga
 		maxDelay:     maxDelay,
 		organization: org,
 		pages:        make([]Page, 0),
+		singlePage:   singlePage,
 	}
 }
 
-// sanitizeURL ensures the URL is properly formatted
 func sanitizeURL(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -75,7 +72,6 @@ func sanitizeURL(rawURL string) string {
 	return u.String()
 }
 
-// extractDomainPrefix gets the base domain from a URL
 func extractDomainPrefix(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -84,15 +80,12 @@ func extractDomainPrefix(rawURL string) string {
 	return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 }
 
-// sanitizeFilename creates a safe filename from a string
 func sanitizeFilename(name string) string {
-	// Replace invalid characters with underscores
 	invalid := []string{"/", "\\", "?", "%", "*", ":", "|", "\"", "<", ">", ".", " "}
 	result := strings.ToLower(name)
 	for _, char := range invalid {
 		result = strings.ReplaceAll(result, char, "_")
 	}
-	// Ensure the filename is not empty and has a reasonable length
 	if len(result) == 0 {
 		result = "unnamed"
 	}
@@ -102,7 +95,6 @@ func sanitizeFilename(name string) string {
 	return result
 }
 
-// humanizedDelay introduces a random delay between requests
 func (s *Scraper) humanizedDelay(noDelay bool) {
 	if noDelay {
 		return
@@ -113,7 +105,6 @@ func (s *Scraper) humanizedDelay(noDelay bool) {
 	time.Sleep(delayDuration)
 }
 
-// resolveURL converts relative URLs to absolute URLs
 func (s *Scraper) resolveURL(href string) string {
 	if strings.HasPrefix(href, "http") {
 		return href
@@ -131,7 +122,6 @@ func (s *Scraper) resolveURL(href string) string {
 	return s.baseURL + "/" + href
 }
 
-// shouldProcessURL determines if a URL should be scraped
 func (s *Scraper) shouldProcessURL(urlStr string) bool {
 	baseURL, err := url.Parse(s.baseURL)
 	if err != nil {
@@ -143,20 +133,16 @@ func (s *Scraper) shouldProcessURL(urlStr string) bool {
 		return false
 	}
 
-	// Check if URLs have the same host
 	if checkURL.Host != baseURL.Host {
 		return false
 	}
 
-	// Check if already visited
 	if s.visitedURLs[urlStr] {
 		return false
 	}
 
-	// Get the path relative to the base URL
 	relPath := strings.TrimPrefix(checkURL.Path, baseURL.Path)
 
-	// Ignore common non-documentation paths
 	ignorePaths := []string{
 		"/assets/", "/static/", "/img/", "/images/",
 		"/js/", "/css/", "/fonts/", "/examples/",
@@ -172,7 +158,6 @@ func (s *Scraper) shouldProcessURL(urlStr string) bool {
 	return true
 }
 
-// getAllDocLinks retrieves all documentation links from a page
 func (s *Scraper) getAllDocLinks(currentURL string) ([]string, error) {
 	req, err := http.NewRequest("GET", currentURL, nil)
 	if err != nil {
@@ -204,7 +189,6 @@ func (s *Scraper) getAllDocLinks(currentURL string) ([]string, error) {
 	return links, nil
 }
 
-// scrapePage extracts content from a single page
 func (s *Scraper) scrapePage(url string) (page Page, err error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -223,7 +207,6 @@ func (s *Scraper) scrapePage(url string) (page Page, err error) {
 		return Page{}, err
 	}
 
-	// Remove non-content elements
 	doc.Find(`
 		header, footer, nav, 
 		.header, .footer, .navigation, .nav, .navbar,
@@ -238,7 +221,6 @@ func (s *Scraper) scrapePage(url string) (page Page, err error) {
 	var content strings.Builder
 	content.WriteString(fmt.Sprintf("\n## Source: %s\n\n", url))
 
-	// Find main content
 	mainContent := doc.Find(`
 		article, 
 		main, 
@@ -257,18 +239,15 @@ func (s *Scraper) scrapePage(url string) (page Page, err error) {
 		mainContent = doc.Find("body")
 	}
 
-	// Extract title and content
 	var title string
 	if titleElem := mainContent.Find("h1").First(); titleElem.Length() > 0 {
 		title = strings.TrimSpace(titleElem.Text())
 		content.WriteString(fmt.Sprintf("# %s\n\n", title))
 	}
 
-	// Calculate page level from URL structure
 	urlPath := strings.Trim(strings.TrimPrefix(url, s.baseURL), "/")
 	level := len(strings.Split(urlPath, "/"))
 
-	// Process content elements
 	mainContent.Find("h2, h3, h4, h5, h6, p, pre, ul, ol, code, blockquote").Each(func(i int, sel *goquery.Selection) {
 		switch goquery.NodeName(sel) {
 		case "h2", "h3", "h4", "h5", "h6":
@@ -327,7 +306,6 @@ func (s *Scraper) scrapePage(url string) (page Page, err error) {
 
 	content.WriteString("---\n\n")
 
-	// Create filename from title or URL
 	filename := sanitizeFilename(title)
 	if filename == "" {
 		filename = sanitizeFilename(filepath.Base(url))
@@ -343,7 +321,6 @@ func (s *Scraper) scrapePage(url string) (page Page, err error) {
 	}, nil
 }
 
-// writeContentToFile writes content to a file and creates necessary directories
 func (s *Scraper) writeContentToFile(filepath string, content string) error {
 	dir := path.Dir(filepath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -353,18 +330,15 @@ func (s *Scraper) writeContentToFile(filepath string, content string) error {
 	return os.WriteFile(filepath, []byte(content), 0644)
 }
 
-// createIndex creates an index file with links to all pages
 func (s *Scraper) createIndex() error {
 	indexPath := filepath.Join(s.outputDir, "index.md")
 	var content strings.Builder
 
-	// Write header
 	title := strings.TrimPrefix(s.baseURL, "https://")
 	title = strings.TrimPrefix(title, "http://")
 	content.WriteString(fmt.Sprintf("# Documentation: %s\n\n", title))
 	content.WriteString("## Table of Contents\n\n")
 
-	// Sort pages by level and write links
 	for _, page := range s.pages {
 		indent := strings.Repeat("  ", page.Level-1)
 		content.WriteString(fmt.Sprintf("%s- [%s](%s) - [source](%s)\n",
@@ -374,13 +348,25 @@ func (s *Scraper) createIndex() error {
 	return s.writeContentToFile(indexPath, content.String())
 }
 
-// Scrape manages the complete scraping process
 func (s *Scraper) Scrape(noDelay bool) error {
+	if s.singlePage {
+		page, err := s.scrapePage(s.baseURL)
+		if err != nil {
+			return fmt.Errorf("error scraping page %s: %v", s.baseURL, err)
+		}
+
+		if s.organization == SingleFile {
+			return s.writeContentToFile(s.outputPath, page.Content)
+		}
+
+		outputPath := filepath.Join(s.outputDir, page.Filename)
+		return s.writeContentToFile(outputPath, page.Content)
+	}
+
 	links := []string{s.baseURL}
 	processed := make(map[string]bool)
 	var mainContent strings.Builder
 
-	// Process links breadth-first
 	for len(links) > 0 {
 		currentURL := links[0]
 		links = links[1:]
@@ -391,14 +377,12 @@ func (s *Scraper) Scrape(noDelay bool) error {
 
 		log.Printf("Scraping: %s", currentURL)
 
-		// Scrape current page
 		page, err := s.scrapePage(currentURL)
 		if err != nil {
 			log.Printf("Error scraping %s: %v", currentURL, err)
 			continue
 		}
 
-		// Handle content based on organization type
 		switch s.organization {
 		case SingleFile:
 			mainContent.WriteString(page.Content)
@@ -412,14 +396,12 @@ func (s *Scraper) Scrape(noDelay bool) error {
 		s.pages = append(s.pages, page)
 		processed[currentURL] = true
 
-		// Get new links
 		newLinks, err := s.getAllDocLinks(currentURL)
 		if err != nil {
 			log.Printf("Error getting links from %s: %v", currentURL, err)
 			continue
 		}
 
-		// Add new unprocessed links
 		for _, link := range newLinks {
 			if !processed[link] {
 				links = append(links, link)
@@ -429,7 +411,6 @@ func (s *Scraper) Scrape(noDelay bool) error {
 		s.humanizedDelay(noDelay)
 	}
 
-	// Write final output
 	if s.organization == SingleFile {
 		title := strings.TrimPrefix(s.baseURL, "https://")
 		title = strings.TrimPrefix(title, "http://")
@@ -441,7 +422,6 @@ func (s *Scraper) Scrape(noDelay bool) error {
 	}
 }
 
-// printHelp displays usage information
 func printHelp() {
 	helpText := `Universal Documentation Scraper
 
@@ -454,6 +434,7 @@ Options:
   -min              Minimum delay between requests in seconds [default: 0.5]
   -max              Maximum delay between requests in seconds [default: 5.0]
   -n, --nodelay     Disable delay between requests
+  -p, --single-page Scrape only the provided URL without following links
   --org             Organization type: single, chapters, pages [default: single]
   -h, --help        Display this help message
 
@@ -465,27 +446,23 @@ Organization Types:
 Examples:
   docscrap -u https://nextjs.org/docs -o nextjs_doc.md
   docscrap -u https://react.dev/reference/react -o react_docs/doc.md --org pages
-  docscrap -u https://docs.python.org/3/ -o python_doc.md --org chapters
-
-Note:
-  When using 'chapters' or 'pages' organization, the output path will be used
-  as the base directory for the documentation files.`
+  docscrap -u https://docs.python.org/3/ -o python_doc.md -p`
 
 	fmt.Println(helpText)
 }
 
 func main() {
 	var (
-		url      string
-		output   string
-		minDelay float64
-		maxDelay float64
-		help     bool
-		noDelay  bool
-		organize string
+		url        string
+		output     string
+		minDelay   float64
+		maxDelay   float64
+		help       bool
+		noDelay    bool
+		organize   string
+		singlePage bool
 	)
 
-	// Configure command line flags
 	flag.StringVar(&url, "u", "", "Documentation URL to scrape")
 	flag.StringVar(&output, "o", "", "Output file path")
 	flag.Float64Var(&minDelay, "min", 0.5, "Minimum delay between requests in seconds")
@@ -493,13 +470,14 @@ func main() {
 	flag.BoolVar(&help, "h", false, "Display help message")
 	flag.BoolVar(&noDelay, "n", false, "Disable delay between requests")
 	flag.StringVar(&organize, "org", "single", "Organization type: single, chapters, pages")
+	flag.BoolVar(&singlePage, "p", false, "Scrape only the provided URL without following links (shorthand)")
 
-	// Long versions of flags
 	flag.StringVar(&url, "url", "", "Documentation URL to scrape")
 	flag.StringVar(&output, "output", "", "Output file path")
 	flag.BoolVar(&help, "help", false, "Display help message")
 	flag.BoolVar(&noDelay, "nodelay", false, "Disable delay between requests")
 	flag.StringVar(&organize, "organization", "single", "Organization type: single, chapters, pages")
+	flag.BoolVar(&singlePage, "single-page", false, "Scrape only the provided URL without following links")
 
 	flag.Parse()
 
@@ -518,7 +496,6 @@ func main() {
 		log.Fatal("Minimum delay must be less than maximum delay")
 	}
 
-	// Determine organization type
 	var org Organization
 	switch strings.ToLower(organize) {
 	case "chapters":
@@ -529,11 +506,9 @@ func main() {
 		org = SingleFile
 	}
 
-	// Initialize random seed
 	rand.Seed(time.Now().UnixNano())
 
-	// Create and run scraper
-	scraper := NewScraper(url, output, minDelay, maxDelay, org)
+	scraper := NewScraper(url, output, minDelay, maxDelay, org, singlePage)
 	if err := scraper.Scrape(noDelay); err != nil {
 		log.Fatal(err)
 	}
