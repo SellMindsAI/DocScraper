@@ -4,7 +4,7 @@
 
 ![Go Version](https://img.shields.io/badge/Go-1.16+-00ADD8?style=flat&logo=go)
 ![License](https://img.shields.io/badge/license-MIT-green)
-[![Go Report Card](https://goreportcard.com/badge/github.com/SellMindsAI/docscraper)](https://goreportcard.com/report/github.com/yourusername/docscraper)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SellMindsAI/docscraper)](https://goreportcard.com/report/github.com/SellMindsAI/docscraper)
 
 ## ✨ Features
 
